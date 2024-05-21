@@ -1,2 +1,124 @@
-<p>Hello it's Jean here.</p>
-<p>welcome to Jean's Mart 坏脾气吉恩的异想世界, where is full of imagination. </p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jean's Mart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: url='https://pixabay.com/zh/photos/sunset-sea-landscape-dusk-8068208/' no-repeat center center;
+            background-size: cover;
+            height: 300px;
+            color: white;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        header h1 {
+            background: rgba(39, 171, 211, 0.713);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            background-color: #1a697bce;
+        }
+        nav a {
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+            text-align: center;
+        }
+        nav a:hover {
+            background-color: #ddd;
+            color: rgb(145, 216, 237);
+        }
+        section {
+            padding: 20px;
+            display: none;
+        }
+        section.active {
+            display: block;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #a5dcf9;
+            color: white;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Welcome to Jean's Mart</h1>
+</header>
+  
+<nav>
+    <a href="#" onclick="showSection('about')">About Me</a>
+    <a href="#" onclick="showSection('blog')">Blog</a>
+    <a href="#" onclick="showSection('memo')">Memo</a>
+    <a href="#" onclick="showSection('mart')">Gallery</a>
+    <a href="#" onclick="showSection('email')">Contact</a>
+</nav>
+
+<section id="about" class="active">
+    <h2>About Me</h2>
+    <p>Hello it's Jean here.</p>
+    <p>welcome to Jean's Mart 坏脾气吉恩的异想世界, where is full of imagination. </p>
+</section>
+
+<section id="blog">
+    <h2>Blog</h2>
+    <p>Your blog posts will appear here.</p>
+</section>
+
+<section id="memo">
+    <h2>Memo</h2>
+    <p>Your short notes or memos will appear here.</p>
+</section>
+
+<section id="mart">
+    <h2>Mart</h2>
+    <p>Your videos will appear here.</p>
+</section>
+
+<section id="email">
+    <h2>Contact Me</h2>
+    <form>
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name"><br>
+        <label for="email">Email:</label><br>
+        <input type="email" id="email" name="email"><br>
+        <label for="message">Message:</label><br>
+        <textarea id="message" name="message"></textarea><br>
+        <input type="submit" value="Send">
+    </form>
+</section>
+
+<footer>
+    <p>&copy; 2024 Jean's Mart. All rights reserved.</p>
+</footer>
+
+<script>
+    function showSection(id) {
+        const sections = document.querySelectorAll('section');
+        sections.forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+
+</body>
+</html>
