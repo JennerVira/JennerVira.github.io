@@ -1,0 +1,18 @@
+{
+  "name": "mood-diary-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mood diary with auth, cloud sync, and push reminders",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "gen:vapid": "node scripts/generate-vapid.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7",
+    "web-push": "^3.6.7"
+  }
+}
