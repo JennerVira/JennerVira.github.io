@@ -108,6 +108,13 @@ function scoreClass(score) {
   return "day-score-good";
 }
 
+function scoreEmoji(score) {
+  if (score >= 1 && score <= 3) return "😔";
+  if (score >= 4 && score <= 6) return "😑";
+  if (score >= 7 && score <= 8) return "😊";
+  return "😄";
+}
+
 function authHeaders() {
   return state.token ? { Authorization: `Bearer ${state.token}` } : {};
 }
@@ -155,9 +162,11 @@ function getEntry(dateStr) {
     state.data[dateStr] = {
       score: 5,
       summary: "",
-      reminders: []
+      reminders: [],
+      logs: []
     };
   }
+  if (!Array.isArray(state.data[dateStr].logs)) state.data[dateStr].logs = [];
   return state.data[dateStr];
 }
 
@@ -194,7 +203,8 @@ async function syncYear(year) {
     state.data[entry.date] = {
       score: Number(entry.score),
       summary: entry.summary || "",
-      reminders: Array.isArray(entry.reminders) ? entry.reminders : []
+      reminders: Array.isArray(entry.reminders) ? entry.reminders : [],
+      logs: Array.isArray(entry.logs) ? entry.logs : []
     };
   }
 }
@@ -354,6 +364,7 @@ function renderMonthCard(year, month) {
     if (entry) {
       btn.classList.add("has-entry", scoreClass(entry.score));
       btn.title = `心情 ${entry.score}/10`;
+      btn.innerHTML = `<span class="day-number">${day}</span><span class="day-emoji">${scoreEmoji(entry.score)}</span>`;
     }
 
     btn.addEventListener("click", () => {
@@ -399,6 +410,7 @@ async function saveEntry(dateStr, entry) {
     body: JSON.stringify({
       score: entry.score,
       summary: entry.summary,
+      logs: Array.isArray(entry.logs) ? entry.logs : [],
       reminders: entry.reminders.map((r) => ({
         time: r.time,
         text: r.text,
@@ -479,6 +491,10 @@ function renderDay(dateStr) {
           <button id="save-entry" class="btn">保存今日记录</button>
           <span class="muted" id="save-status"></span>
         </div>
+
+        <div class="divider"></div>
+        <h3 style="margin-top:0;">今日记录回看</h3>
+        <ul id="mood-log-list" class="mood-log-list"></ul>
       </article>
 
       <section class="stack">
@@ -526,6 +542,22 @@ function renderDay(dateStr) {
 
   const scoreEl = document.getElementById("score");
   const scoreTag = document.getElementById("score-tag");
+  const logList = document.getElementById("mood-log-list");
+
+  function renderMoodLogs() {
+    if (!entry.logs.length) {
+      logList.innerHTML = '<li class="muted">还没有记录，保存后会显示在这里。</li>';
+      return;
+    }
+    const sortedLogs = [...entry.logs].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    logList.innerHTML = sortedLogs.map((log) => {
+      const when = formatLogTime(log.at);
+      return `<li><strong>${scoreEmoji(log.score)} ${log.score}/10</strong> · <span class="muted">${when}</span><br/>${escapeHtml(log.summary || "（未填写总结）")}</li>`;
+    }).join("");
+  }
+
+  renderMoodLogs();
+
   scoreEl.addEventListener("input", () => {
     scoreTag.textContent = `${scoreEl.value}/10`;
     scoreTag.style.background = scoreEl.value >= 8 ? "#2b9348" : scoreEl.value <= 4 ? "#d62839" : "#f4a261";
@@ -534,10 +566,17 @@ function renderDay(dateStr) {
   document.getElementById("save-entry").addEventListener("click", async () => {
     entry.score = Number(scoreEl.value);
     entry.summary = document.getElementById("summary").value.trim();
+    entry.logs = Array.isArray(entry.logs) ? entry.logs : [];
+    entry.logs.push({
+      score: entry.score,
+      summary: entry.summary,
+      at: new Date().toISOString()
+    });
 
     try {
       await saveEntry(dateStr, entry);
       document.getElementById("save-status").textContent = state.user ? "已保存并同步到云端" : "已保存（本地）";
+      renderMoodLogs();
       renderHome();
     } catch (err) {
       document.getElementById("save-status").textContent = `保存失败：${err.message}`;
@@ -642,6 +681,20 @@ function base64ToUint8Array(base64String) {
   }
 
   return outputArray;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function formatLogTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 async function bootstrap() {

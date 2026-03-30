@@ -154,11 +154,23 @@ body {
   border: 0;
   border-radius: 10px;
   min-height: 34px;
+  display: grid;
+  place-items: center;
   background: var(--surface-soft);
   color: var(--text);
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   font-size: 0.85rem;
+}
+
+.day-number {
+  line-height: 1;
+}
+
+.day-emoji {
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-top: 1px;
 }
 
 .day:hover {
@@ -312,6 +324,21 @@ textarea {
   background: #f3f8f2;
   border-radius: 10px;
   padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.mood-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.mood-log-list li {
+  background: #f3f8f2;
+  border-radius: 10px;
+  padding: 10px;
   font-size: 0.9rem;
 }
 

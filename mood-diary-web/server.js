@@ -68,11 +68,14 @@ async function initializeSchema() {
       date TEXT NOT NULL,
       score INTEGER NOT NULL,
       summary TEXT NOT NULL DEFAULT '',
+      logs_json TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(user_id, date),
       FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
+
+  await ensureColumn("entries", "logs_json", "TEXT NOT NULL DEFAULT '[]'");
 
   await run(`
     CREATE TABLE IF NOT EXISTS reminders (
@@ -167,7 +170,7 @@ function startServer() {
       }
 
       const entryRows = await all(
-        `SELECT date, score, summary, updated_at FROM entries
+        `SELECT date, score, summary, logs_json, updated_at FROM entries
          WHERE user_id = ? AND date >= ? AND date <= ?
          ORDER BY date ASC`,
         [req.user.id, `${year}-01-01`, `${year}-12-31`]
@@ -194,6 +197,7 @@ function startServer() {
         date: e.date,
         score: e.score,
         summary: e.summary,
+        logs: parseLogs(e.logs_json),
         reminders: remindersByDate[e.date] || [],
         updatedAt: e.updated_at
       }));
@@ -212,6 +216,7 @@ function startServer() {
 
     const score = Number(req.body.score);
     const summary = String(req.body.summary || "").slice(0, 200);
+    const logs = normalizeLogs(req.body.logs);
     const reminders = Array.isArray(req.body.reminders) ? req.body.reminders : [];
 
     if (!Number.isInteger(score) || score < 1 || score > 10) {
@@ -222,11 +227,11 @@ function startServer() {
       await run("BEGIN TRANSACTION");
 
       await run(
-        `INSERT INTO entries (user_id, date, score, summary, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'))
+        `INSERT INTO entries (user_id, date, score, summary, logs_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))
          ON CONFLICT(user_id, date)
-         DO UPDATE SET score=excluded.score, summary=excluded.summary, updated_at=datetime('now')`,
-        [req.user.id, date, score, summary]
+         DO UPDATE SET score=excluded.score, summary=excluded.summary, logs_json=excluded.logs_json, updated_at=datetime('now')`,
+        [req.user.id, date, score, summary, JSON.stringify(logs)]
       );
 
       await run("DELETE FROM reminders WHERE user_id = ? AND entry_date = ?", [req.user.id, date]);
@@ -397,6 +402,35 @@ function all(sql, params = []) {
       resolve(rows || []);
     });
   });
+}
+
+async function ensureColumn(tableName, columnName, columnDefinition) {
+  const columns = await all(`PRAGMA table_info(${tableName})`);
+  const exists = columns.some((col) => col.name === columnName);
+  if (!exists) {
+    await run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+  }
+}
+
+function parseLogs(value) {
+  try {
+    const arr = JSON.parse(value || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeLogs(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .slice(-200)
+    .map((item) => ({
+      score: Number(item.score),
+      summary: String(item.summary || "").slice(0, 200),
+      at: String(item.at || "")
+    }))
+    .filter((item) => Number.isInteger(item.score) && item.score >= 1 && item.score <= 10 && item.at);
 }
 
 function loadEnv(envPath) {
