@@ -39,11 +39,11 @@ body {
 #app {
   max-width: 1220px;
   margin: 0 auto;
-  padding: 28px 18px 56px;
+  padding: 18px 18px 28px;
 }
 
 .topbar {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .brand {
@@ -53,32 +53,42 @@ body {
 }
 
 .logo {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 16px;
-  background: linear-gradient(145deg, #c6e7d6 0%, #8bc6ac 100%);
+  position: relative;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 26px rgba(83, 150, 117, 0.34);
+  background: linear-gradient(145deg, #102522 0%, #24463f 46%, #507d72 100%);
+  box-shadow:
+    0 14px 28px rgba(26, 54, 48, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  overflow: hidden;
 }
 
-.logo-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff8f2;
-  position: relative;
-}
-
-.logo-dot::after {
+.logo::before {
   content: "";
   position: absolute;
-  width: 8px;
-  height: 8px;
-  right: -3px;
-  top: 7px;
+  inset: 0;
+  background: radial-gradient(circle at 72% 24%, rgba(255, 255, 255, 0.36), transparent 46%);
+}
+
+.logo-core {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #eec39a;
+  background: radial-gradient(circle at 32% 32%, #fffdf6 0%, #f6e6d2 56%, #d4ac83 100%);
+  box-shadow: 0 0 12px rgba(255, 236, 197, 0.55);
+  z-index: 2;
+}
+
+.logo-orbit {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(203, 232, 215, 0.55);
+  transform: rotate(-18deg);
 }
 
 .topbar h1 {
@@ -105,12 +115,12 @@ body {
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  padding: 16px;
+  padding: 14px;
   animation: fadeUp 0.35s ease;
 }
 
 .auth-panel {
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .auth-panel h3 {
@@ -177,7 +187,7 @@ label {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .day-header h2 {
@@ -187,7 +197,7 @@ label {
 }
 
 .month-control {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .month-meta {
@@ -208,8 +218,45 @@ label {
   color: #4e7d66;
 }
 
+.calendar-stage {
+  min-height: calc(100vh - 220px);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-arrow {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid #cfe4d7;
+  background: #f2faf5;
+  color: #4f7f67;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.nav-arrow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px rgba(93, 127, 109, 0.24);
+}
+
 .month-focus-wrap {
   width: 100%;
+}
+
+.months-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.year-grid .month-card {
+  padding: 12px;
 }
 
 .month-card {
@@ -224,6 +271,39 @@ label {
   width: min(100%, 1120px);
   margin: 0 auto;
   padding: 20px;
+}
+
+.month-card-compact .month-title {
+  font-size: 1.1rem;
+}
+
+.month-card-compact .weekday-row {
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.month-card-compact .weekday-row span {
+  font-size: 0.74rem;
+}
+
+.month-card-compact .month-grid {
+  gap: 5px;
+}
+
+.month-card-compact .day {
+  min-height: 46px;
+  border-radius: 9px;
+  font-size: 0.86rem;
+}
+
+.month-card-compact .day-sub {
+  font-size: 0.55rem;
+  margin-top: 2px;
+}
+
+.month-card-compact .day-emoji {
+  font-size: 0.64rem;
+  margin-top: 2px;
 }
 
 .month-title {
@@ -260,8 +340,9 @@ label {
   border-radius: 14px;
   min-height: 90px;
   display: grid;
-  place-items: center;
-  font-size: 1.26rem;
+  align-content: center;
+  justify-items: center;
+  font-size: 1.2rem;
   line-height: 1;
   color: #2b3a31;
   background: var(--surface-soft);
@@ -274,9 +355,16 @@ label {
   line-height: 1;
 }
 
+.day-sub {
+  margin-top: 5px;
+  font-size: 0.68rem;
+  color: #75907c;
+  line-height: 1;
+}
+
 .day-emoji {
-  font-size: 1.05rem;
-  margin-top: 8px;
+  font-size: 1.03rem;
+  margin-top: 6px;
   line-height: 1;
 }
 
@@ -427,6 +515,16 @@ a:hover {
     grid-template-columns: 1fr;
   }
 
+  .calendar-stage {
+    min-height: auto;
+  }
+
+  .nav-arrow {
+    width: 38px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
   .day {
     min-height: 72px;
     font-size: 1.05rem;
@@ -440,7 +538,7 @@ a:hover {
 
 @media (max-width: 760px) {
   #app {
-    padding: 20px 12px 42px;
+    padding: 16px 10px 26px;
   }
 
   .auth-grid {
@@ -448,7 +546,7 @@ a:hover {
   }
 
   .month-card-large {
-    padding: 14px;
+    padding: 12px;
   }
 
   .weekday-row {
@@ -461,16 +559,21 @@ a:hover {
 
   .day {
     border-radius: 10px;
-    min-height: 58px;
-    font-size: 0.96rem;
+    min-height: 56px;
+    font-size: 0.92rem;
+  }
+
+  .day-sub {
+    font-size: 0.56rem;
+    margin-top: 3px;
   }
 
   .day-emoji {
-    font-size: 0.78rem;
-    margin-top: 4px;
+    font-size: 0.72rem;
+    margin-top: 2px;
   }
 
   .chip {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
   }
 }

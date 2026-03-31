@@ -74,9 +74,34 @@ const defaultAiTips = [
   "晚间提醒回顾今天三件完成的小事"
 ];
 
+const solarFestivals = {
+  "01-01": "元旦",
+  "02-14": "情人节",
+  "03-08": "妇女节",
+  "04-04": "清明",
+  "05-01": "劳动节",
+  "06-01": "儿童节",
+  "10-01": "国庆",
+  "12-25": "圣诞"
+};
+
+const lunarFestivals = {
+  "正月初一": "春节",
+  "正月十五": "元宵",
+  "五月初五": "端午",
+  "七月初七": "七夕",
+  "八月十五": "中秋",
+  "九月初九": "重阳",
+  "腊月初八": "腊八",
+  "腊月廿三": "小年",
+  "腊月廿九": "除夕",
+  "腊月三十": "除夕"
+};
+
 const state = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
+  viewMode: "month",
   selectedDate: toISODate(new Date()),
   data: loadGuestData(),
   token: localStorage.getItem(TOKEN_KEY) || "",
@@ -301,11 +326,9 @@ function renderHome() {
     <div class="day-header">
       <div>
         <h2>${state.year} 年 ${monthNames[state.month]} 心情日历</h2>
-        <p class="muted">单月大视图，左右翻页切换月份。点击日期进入详细记录。</p>
       </div>
       <div class="inline">
-        <button class="back-btn" id="prev-month">← 上个月</button>
-        <button class="back-btn" id="next-month">下个月 →</button>
+        <button class="back-btn" id="switch-view">${state.viewMode === "month" ? "年历视图" : "月历视图"}</button>
       </div>
     </div>
     <div class="month-meta">
@@ -315,33 +338,51 @@ function renderHome() {
     </div>
   `;
 
-  const monthWrap = document.createElement("div");
-  monthWrap.className = "month-focus-wrap";
-  monthWrap.appendChild(renderMonthCard(state.year, state.month, { large: true }));
+  if (state.viewMode === "month") {
+    const stage = document.createElement("div");
+    stage.className = "calendar-stage";
+    stage.innerHTML = `
+      <button class="nav-arrow left" id="prev-month" aria-label="上个月">&lt;</button>
+      <div class="month-focus-wrap" id="month-focus-wrap"></div>
+      <button class="nav-arrow right" id="next-month" aria-label="下个月">&gt;</button>
+    `;
+    stage.querySelector("#month-focus-wrap").appendChild(renderMonthCard(state.year, state.month, { large: true }));
+    homeView.append(control, stage);
 
-  homeView.append(control, monthWrap);
+    document.getElementById("prev-month").addEventListener("click", async () => {
+      state.month -= 1;
+      if (state.month < 0) {
+        state.month = 11;
+        state.year -= 1;
+      }
+      if (state.user) {
+        await syncYear(state.year).catch(() => {});
+      }
+      renderHome();
+    });
 
-  document.getElementById("prev-month").addEventListener("click", async () => {
-    state.month -= 1;
-    if (state.month < 0) {
-      state.month = 11;
-      state.year -= 1;
+    document.getElementById("next-month").addEventListener("click", async () => {
+      state.month += 1;
+      if (state.month > 11) {
+        state.month = 0;
+        state.year += 1;
+      }
+      if (state.user) {
+        await syncYear(state.year).catch(() => {});
+      }
+      renderHome();
+    });
+  } else {
+    const yearWrap = document.createElement("div");
+    yearWrap.className = "months-grid year-grid";
+    for (let month = 0; month < 12; month += 1) {
+      yearWrap.appendChild(renderMonthCard(state.year, month, { compact: true }));
     }
-    if (state.user) {
-      await syncYear(state.year).catch(() => {});
-    }
-    renderHome();
-  });
+    homeView.append(control, yearWrap);
+  }
 
-  document.getElementById("next-month").addEventListener("click", async () => {
-    state.month += 1;
-    if (state.month > 11) {
-      state.month = 0;
-      state.year += 1;
-    }
-    if (state.user) {
-      await syncYear(state.year).catch(() => {});
-    }
+  document.getElementById("switch-view").addEventListener("click", () => {
+    state.viewMode = state.viewMode === "month" ? "year" : "month";
     renderHome();
   });
 }
@@ -350,6 +391,7 @@ function renderMonthCard(year, month, options = {}) {
   const tpl = document.getElementById("month-template");
   const node = tpl.content.firstElementChild.cloneNode(true);
   if (options.large) node.classList.add("month-card-large");
+  if (options.compact) node.classList.add("month-card-compact");
   node.querySelector(".month-title").textContent = `${monthNames[month]} ${year}`;
 
   const monthGrid = node.querySelector(".month-grid");
@@ -372,14 +414,27 @@ function renderMonthCard(year, month, options = {}) {
 
     const btn = document.createElement("button");
     btn.className = "day";
-    btn.textContent = String(day);
 
     if (dateStr === today) btn.classList.add("today");
 
+    const lunar = getLunarLabel(date);
+    const festival = getFestivalLabel(date, lunar.full);
+    const subText = festival || lunar.short;
+
     if (entry) {
       btn.classList.add("has-entry", scoreClass(entry.score));
-      btn.title = `心情 ${entry.score}/10`;
-      btn.innerHTML = `<span class="day-number">${day}</span><span class="day-emoji">${scoreEmoji(entry.score)}</span>`;
+      btn.title = `心情 ${entry.score}/10 ${festival ? `· ${festival}` : ""}`;
+      btn.innerHTML = `
+        <span class="day-number">${day}</span>
+        <span class="day-sub">${subText}</span>
+        <span class="day-emoji">${scoreEmoji(entry.score)}</span>
+      `;
+    } else {
+      btn.title = festival ? `节日：${festival}` : lunar.full;
+      btn.innerHTML = `
+        <span class="day-number">${day}</span>
+        <span class="day-sub">${subText}</span>
+      `;
     }
 
     btn.addEventListener("click", () => {
@@ -404,6 +459,29 @@ function getMonthStats(year, month) {
     ? (entries.reduce((sum, e) => sum + Number(e.score), 0) / recordedDays).toFixed(1)
     : "--";
   return { recordedDays, avgScore: avg };
+}
+
+function getLunarLabel(date) {
+  try {
+    const parts = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
+      month: "long",
+      day: "numeric"
+    }).formatToParts(date);
+    const month = parts.find((p) => p.type === "month")?.value || "";
+    const day = parts.find((p) => p.type === "day")?.value || "";
+    const full = `${month}${day}`;
+    const short = day === "初一" ? month : day;
+    return { full, short };
+  } catch {
+    return { full: "", short: "" };
+  }
+}
+
+function getFestivalLabel(date, lunarFull) {
+  const solarKey = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  if (solarFestivals[solarKey]) return solarFestivals[solarKey];
+  if (lunarFull && lunarFestivals[lunarFull]) return lunarFestivals[lunarFull];
+  return "";
 }
 
 function getBookRecommendation(dateStr) {
