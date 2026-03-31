@@ -76,6 +76,7 @@ const defaultAiTips = [
 
 const state = {
   year: new Date().getFullYear(),
+  month: new Date().getMonth(),
   selectedDate: toISODate(new Date()),
   data: loadGuestData(),
   token: localStorage.getItem(TOKEN_KEY) || "",
@@ -297,34 +298,39 @@ function renderHome() {
   control.className = "card";
   control.innerHTML = `
     <div class="day-header">
-      <h2>${state.year} 年全年心情日历</h2>
+      <h2>${state.year} 年 ${monthNames[state.month]} 心情日历</h2>
       <div class="inline">
-        <button class="back-btn" id="prev-year">上一年</button>
-        <button class="back-btn" id="next-year">下一年</button>
+        <button class="back-btn" id="prev-month">← 上个月</button>
+        <button class="back-btn" id="next-month">下个月 →</button>
       </div>
     </div>
-    <p class="muted">已记录日期会高亮；登录后会自动云端同步。</p>
+    <p class="muted">单月大视图，左右翻页切换月份。已记录日期会显示对应心情表情。</p>
   `;
 
-  const monthsGrid = document.createElement("div");
-  monthsGrid.className = "months-grid";
+  const monthWrap = document.createElement("div");
+  monthWrap.className = "month-focus-wrap";
+  monthWrap.appendChild(renderMonthCard(state.year, state.month, { large: true }));
 
-  for (let month = 0; month < 12; month += 1) {
-    monthsGrid.appendChild(renderMonthCard(state.year, month));
-  }
+  homeView.append(control, monthWrap);
 
-  homeView.append(control, monthsGrid);
-
-  document.getElementById("prev-year").addEventListener("click", async () => {
-    state.year -= 1;
+  document.getElementById("prev-month").addEventListener("click", async () => {
+    state.month -= 1;
+    if (state.month < 0) {
+      state.month = 11;
+      state.year -= 1;
+    }
     if (state.user) {
       await syncYear(state.year).catch(() => {});
     }
     renderHome();
   });
 
-  document.getElementById("next-year").addEventListener("click", async () => {
-    state.year += 1;
+  document.getElementById("next-month").addEventListener("click", async () => {
+    state.month += 1;
+    if (state.month > 11) {
+      state.month = 0;
+      state.year += 1;
+    }
     if (state.user) {
       await syncYear(state.year).catch(() => {});
     }
@@ -332,9 +338,10 @@ function renderHome() {
   });
 }
 
-function renderMonthCard(year, month) {
+function renderMonthCard(year, month, options = {}) {
   const tpl = document.getElementById("month-template");
   const node = tpl.content.firstElementChild.cloneNode(true);
+  if (options.large) node.classList.add("month-card-large");
   node.querySelector(".month-title").textContent = `${monthNames[month]} ${year}`;
 
   const monthGrid = node.querySelector(".month-grid");

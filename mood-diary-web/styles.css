@@ -20,7 +20,7 @@
 
 body {
   margin: 0;
-  font-family: "Hiragino Sans GB", "PingFang SC", "Noto Sans SC", sans-serif;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
   color: var(--text);
   background:
     radial-gradient(circle at 13% 8%, #eef6ea 0%, transparent 36%),
@@ -132,9 +132,20 @@ body {
   padding: 14px;
 }
 
+.month-focus-wrap {
+  width: 100%;
+}
+
+.month-card-large {
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  padding: 20px;
+}
+
 .month-title {
   margin: 0 0 10px;
   font-size: 1.05rem;
+  font-family: "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", "PingFang SC", sans-serif;
 }
 
 .weekday-row,
@@ -146,8 +157,10 @@ body {
 
 .weekday-row {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   margin-bottom: 8px;
+  text-align: center;
+  font-family: "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", "PingFang SC", sans-serif;
 }
 
 .day {
@@ -161,6 +174,7 @@ body {
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   font-size: 0.85rem;
+  font-family: "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", "PingFang SC", sans-serif;
 }
 
 .day-number {
@@ -171,6 +185,32 @@ body {
   font-size: 0.72rem;
   line-height: 1;
   margin-top: 1px;
+}
+
+.month-card-large .month-title {
+  font-size: 1.4rem;
+  margin-bottom: 14px;
+}
+
+.month-card-large .weekday-row {
+  font-size: 1rem;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.month-card-large .month-grid {
+  gap: 10px;
+}
+
+.month-card-large .day {
+  min-height: 86px;
+  font-size: 1.3rem;
+  border-radius: 14px;
+}
+
+.month-card-large .day-emoji {
+  font-size: 1.05rem;
+  margin-top: 8px;
 }
 
 .day:hover {
@@ -360,5 +400,19 @@ textarea {
 
   .auth-grid {
     grid-template-columns: 1fr;
+  }
+
+  .month-card-large {
+    padding: 14px;
+  }
+
+  .month-card-large .day {
+    min-height: 62px;
+    font-size: 1.05rem;
+  }
+
+  .month-card-large .day-emoji {
+    font-size: 0.86rem;
+    margin-top: 4px;
   }
 }
