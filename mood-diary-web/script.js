@@ -111,7 +111,6 @@ const state = {
   swReg: null
 };
 
-const authPanel = document.getElementById("auth-panel");
 const homeView = document.getElementById("home-view");
 const dayView = document.getElementById("day-view");
 
@@ -236,84 +235,7 @@ async function syncYear(year) {
 }
 
 function renderAuthPanel() {
-  if (state.user) {
-    authPanel.innerHTML = `
-      <div class="auth-row">
-        <div>
-          <strong>已登录：</strong>${state.user.email}
-          <p class="muted">数据自动同步到云端。提醒将由服务端按时推送。</p>
-        </div>
-        <div class="inline">
-          <button id="sync-now" class="btn ghost">立即同步</button>
-          <button id="logout" class="btn ghost">退出登录</button>
-        </div>
-      </div>
-    `;
-
-    document.getElementById("sync-now").addEventListener("click", async () => {
-      try {
-        await syncYear(state.year);
-        renderHome();
-        alert("已从云端同步当前年份数据");
-      } catch (err) {
-        alert(err.message);
-      }
-    });
-
-    document.getElementById("logout").addEventListener("click", () => {
-      state.user = null;
-      state.token = "";
-      localStorage.removeItem(TOKEN_KEY);
-      renderAuthPanel();
-    });
-
-    return;
-  }
-
-  authPanel.innerHTML = `
-    <h3>登录账号（启用云端同步与离线推送提醒）</h3>
-    <div class="auth-grid">
-      <input id="auth-email" type="email" placeholder="邮箱" />
-      <input id="auth-password" type="password" placeholder="密码（至少 6 位）" />
-      <button id="login-btn" class="btn">登录</button>
-      <button id="register-btn" class="btn ghost">注册</button>
-    </div>
-    <p class="muted" id="auth-msg">未登录时只能在当前浏览器临时使用。</p>
-  `;
-
-  const emailEl = document.getElementById("auth-email");
-  const pwdEl = document.getElementById("auth-password");
-  const msgEl = document.getElementById("auth-msg");
-
-  async function submit(mode) {
-    const email = emailEl.value.trim();
-    const password = pwdEl.value.trim();
-    if (!email || !password) {
-      showMessage(msgEl, "请填写邮箱和密码", true);
-      return;
-    }
-
-    try {
-      const data = await api(`/api/auth/${mode}`, {
-        method: "POST",
-        body: JSON.stringify({ email, password })
-      });
-
-      state.token = data.token;
-      state.user = data.user;
-      localStorage.setItem(TOKEN_KEY, state.token);
-      showMessage(msgEl, mode === "login" ? "登录成功" : "注册成功");
-
-      await syncYear(state.year);
-      renderAuthPanel();
-      renderHome();
-    } catch (err) {
-      showMessage(msgEl, err.message, true);
-    }
-  }
-
-  document.getElementById("login-btn").addEventListener("click", () => submit("login"));
-  document.getElementById("register-btn").addEventListener("click", () => submit("register"));
+  return;
 }
 
 function renderHome() {
@@ -464,17 +386,42 @@ function getMonthStats(year, month) {
 function getLunarLabel(date) {
   try {
     const parts = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
-      month: "long",
+      month: "numeric",
       day: "numeric"
     }).formatToParts(date);
-    const month = parts.find((p) => p.type === "month")?.value || "";
-    const day = parts.find((p) => p.type === "day")?.value || "";
+    const monthRaw = parts.find((p) => p.type === "month")?.value || "";
+    const dayRaw = parts.find((p) => p.type === "day")?.value || "";
+    const monthNum = Number(monthRaw);
+    const dayNum = Number(dayRaw);
+    const month = lunarMonthName(monthNum);
+    const day = lunarDayName(dayNum);
     const full = `${month}${day}`;
-    const short = day === "初一" ? month : day;
+    const short = dayNum === 1 ? month : day;
     return { full, short };
   } catch {
     return { full: "", short: "" };
   }
+}
+
+function lunarMonthName(monthNum) {
+  const names = ["正月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "冬月", "腊月"];
+  if (monthNum >= 1 && monthNum <= 12) return names[monthNum - 1];
+  return `${monthNum}月`;
+}
+
+function lunarDayName(dayNum) {
+  const special = {
+    10: "初十",
+    20: "二十",
+    30: "三十"
+  };
+  if (special[dayNum]) return special[dayNum];
+  const prefix = ["初", "十", "廿", "三"];
+  const nums = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
+  const tens = Math.floor((dayNum - 1) / 10);
+  const ones = (dayNum - 1) % 10;
+  if (dayNum < 1 || dayNum > 30) return String(dayNum);
+  return `${prefix[tens]}${nums[ones]}`;
 }
 
 function getFestivalLabel(date, lunarFull) {
@@ -814,8 +761,6 @@ async function bootstrap() {
     state.swReg = await navigator.serviceWorker.register("/sw.js").catch(() => null);
   }
 
-  await loadCurrentUser();
-  renderAuthPanel();
   navigateByHash();
 
   window.addEventListener("hashchange", navigateByHash);
