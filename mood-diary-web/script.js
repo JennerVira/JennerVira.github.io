@@ -150,7 +150,10 @@ const homeView = document.getElementById("home-view");
 const dayView = document.getElementById("day-view");
 
 function toISODate(date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function formatDateCN(dateStr) {
@@ -207,7 +210,12 @@ function showMessage(el, text, isError = false) {
 
 function loadGuestData() {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_DATA_KEY) || "{}");
+    const raw = JSON.parse(localStorage.getItem(LOCAL_DATA_KEY) || "{}");
+    const normalized = {};
+    Object.entries(raw).forEach(([date, value]) => {
+      normalized[date] = normalizeEntry(value, false);
+    });
+    return normalized;
   } catch {
     return {};
   }
@@ -218,16 +226,35 @@ function saveGuestData() {
 }
 
 function getEntry(dateStr) {
-  if (!state.data[dateStr]) {
-    state.data[dateStr] = {
-      score: 5,
-      summary: "",
-      reminders: [],
-      logs: []
-    };
-  }
-  if (!Array.isArray(state.data[dateStr].logs)) state.data[dateStr].logs = [];
-  return state.data[dateStr];
+  if (state.data[dateStr]) return normalizeEntry(state.data[dateStr], true);
+  return normalizeEntry({}, false);
+}
+
+function isEntrySaved(entry) {
+  return entry.saved === true;
+}
+
+function normalizeEntry(input, savedFallback) {
+  const score = Number(input?.score);
+  const safeScore = Number.isInteger(score) && score >= 1 && score <= 10 ? score : 5;
+  const summary = String(input?.summary || "");
+  const reminders = Array.isArray(input?.reminders) ? input.reminders : [];
+  const logs = Array.isArray(input?.logs) ? input.logs : [];
+  const saved = typeof input?.saved === "boolean"
+    ? input.saved
+    : Boolean(
+      savedFallback ||
+      logs.length > 0 ||
+      summary.trim() ||
+      reminders.length > 0
+    );
+  return {
+    score: safeScore,
+    summary,
+    reminders,
+    logs,
+    saved
+  };
 }
 
 async function loadConfig() {
@@ -260,12 +287,13 @@ async function syncYear(year) {
   const data = await api(`/api/entries?year=${year}`, { method: "GET" });
 
   for (const entry of data.entries) {
-    state.data[entry.date] = {
+    state.data[entry.date] = normalizeEntry({
       score: Number(entry.score),
       summary: entry.summary || "",
       reminders: Array.isArray(entry.reminders) ? entry.reminders : [],
-      logs: Array.isArray(entry.logs) ? entry.logs : []
-    };
+      logs: Array.isArray(entry.logs) ? entry.logs : [],
+      saved: true
+    }, true);
   }
 }
 
@@ -378,7 +406,7 @@ function renderMonthCard(year, month, options = {}) {
     const festival = getFestivalLabel(date, lunar.full);
     const subText = festival || lunar.short;
 
-    if (entry) {
+    if (entry && isEntrySaved(entry)) {
       btn.classList.add("has-entry", scoreClass(entry.score));
       btn.title = `心情 ${entry.score}/10 ${festival ? `· ${festival}` : ""}`;
       btn.innerHTML = `
@@ -410,7 +438,7 @@ function getMonthStats(year, month) {
   const entries = Object.entries(state.data)
     .filter(([date]) => date.startsWith(prefix))
     .map(([, value]) => value)
-    .filter((value) => Number.isFinite(Number(value.score)));
+    .filter((value) => isEntrySaved(value) && Number.isFinite(Number(value.score)));
   const recordedDays = entries.length;
   const avg = recordedDays
     ? (entries.reduce((sum, e) => sum + Number(e.score), 0) / recordedDays).toFixed(1)
@@ -516,6 +544,8 @@ function buildRemindAt(dateStr, time) {
 }
 
 async function saveEntry(dateStr, entry) {
+  const normalized = normalizeEntry({ ...entry, saved: true }, true);
+  state.data[dateStr] = normalized;
   if (!state.user) {
     saveGuestData();
     return;
@@ -524,10 +554,10 @@ async function saveEntry(dateStr, entry) {
   await api(`/api/entries/${dateStr}`, {
     method: "PUT",
     body: JSON.stringify({
-      score: entry.score,
-      summary: entry.summary,
-      logs: Array.isArray(entry.logs) ? entry.logs : [],
-      reminders: entry.reminders.map((r) => ({
+      score: normalized.score,
+      summary: normalized.summary,
+      logs: Array.isArray(normalized.logs) ? normalized.logs : [],
+      reminders: normalized.reminders.map((r) => ({
         time: r.time,
         text: r.text,
         remindAt: r.remindAt || buildRemindAt(dateStr, r.time)
@@ -692,6 +722,7 @@ function renderDay(dateStr) {
       summary: entry.summary,
       at: new Date().toISOString()
     });
+    entry.saved = true;
 
     try {
       await saveEntry(dateStr, entry);
