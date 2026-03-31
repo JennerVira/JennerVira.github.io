@@ -293,18 +293,26 @@ function renderAuthPanel() {
 
 function renderHome() {
   homeView.innerHTML = "";
+  const monthStat = getMonthStats(state.year, state.month);
 
   const control = document.createElement("div");
-  control.className = "card";
+  control.className = "card month-control";
   control.innerHTML = `
     <div class="day-header">
-      <h2>${state.year} 年 ${monthNames[state.month]} 心情日历</h2>
+      <div>
+        <h2>${state.year} 年 ${monthNames[state.month]} 心情日历</h2>
+        <p class="muted">单月大视图，左右翻页切换月份。点击日期进入详细记录。</p>
+      </div>
       <div class="inline">
         <button class="back-btn" id="prev-month">← 上个月</button>
         <button class="back-btn" id="next-month">下个月 →</button>
       </div>
     </div>
-    <p class="muted">单月大视图，左右翻页切换月份。已记录日期会显示对应心情表情。</p>
+    <div class="month-meta">
+      <span class="chip">已记录 ${monthStat.recordedDays} 天</span>
+      <span class="chip">平均分 ${monthStat.avgScore}</span>
+      <span class="chip">😔 1-3 / 😑 4-6 / 😊 7-8 / 😄 9-10</span>
+    </div>
   `;
 
   const monthWrap = document.createElement("div");
@@ -382,6 +390,20 @@ function renderMonthCard(year, month, options = {}) {
   }
 
   return node;
+}
+
+function getMonthStats(year, month) {
+  const mm = String(month + 1).padStart(2, "0");
+  const prefix = `${year}-${mm}-`;
+  const entries = Object.entries(state.data)
+    .filter(([date]) => date.startsWith(prefix))
+    .map(([, value]) => value)
+    .filter((value) => Number.isFinite(Number(value.score)));
+  const recordedDays = entries.length;
+  const avg = recordedDays
+    ? (entries.reduce((sum, e) => sum + Number(e.score), 0) / recordedDays).toFixed(1)
+    : "--";
+  return { recordedDays, avgScore: avg };
 }
 
 function getBookRecommendation(dateStr) {
@@ -476,8 +498,11 @@ function renderDay(dateStr) {
 
   dayView.innerHTML = `
     <div class="day-header">
-      <h2>${formatDateCN(dateStr)}</h2>
-      <button class="back-btn" id="go-home">返回全年日历</button>
+      <div>
+        <h2>${formatDateCN(dateStr)}</h2>
+        <p class="muted">专注记录今天，沉淀可回看的情绪轨迹。</p>
+      </div>
+      <button class="back-btn" id="go-home">返回月历</button>
     </div>
 
     <div class="cards">
