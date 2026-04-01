@@ -432,6 +432,14 @@ label {
   box-shadow: 0 8px 16px rgba(96, 139, 114, 0.2);
 }
 
+.back-btn:disabled,
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .score-tag {
   min-width: 68px;
   text-align: center;
@@ -481,6 +489,10 @@ label {
 .muted {
   color: var(--text-muted);
   font-size: 0.88rem;
+}
+
+.ci-poem {
+  line-height: 1.75;
 }
 
 .divider {

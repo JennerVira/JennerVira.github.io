@@ -14,6 +14,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_only_change_me";
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:you@example.com";
+const OWNER_EMAIL = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+const OWNER_EDIT_KEY = String(process.env.OWNER_EDIT_KEY || "").trim();
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "https://jennervira.github.io";
 const ALLOWED_ORIGINS = new Set(
   [FRONTEND_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"].filter(Boolean)
@@ -205,6 +207,127 @@ function startServer() {
       res.json({ entries });
     } catch {
       res.status(500).json({ error: "读取日记失败" });
+    }
+  });
+
+  app.get("/api/public/entries", async (req, res) => {
+    try {
+      const year = String(req.query.year || "").trim();
+      const ownerKey = String(req.query.ownerKey || "").trim();
+      if (!/^\d{4}$/.test(year)) {
+        return res.status(400).json({ error: "year 参数无效" });
+      }
+      if (!OWNER_EMAIL) {
+        return res.status(500).json({ error: "服务端未配置 OWNER_EMAIL" });
+      }
+
+      const owner = await get("SELECT id, email FROM users WHERE email = ?", [OWNER_EMAIL]);
+      if (!owner) {
+        return res.json({ entries: [], canEdit: false });
+      }
+
+      const entryRows = await all(
+        `SELECT date, score, summary, logs_json, updated_at FROM entries
+         WHERE user_id = ? AND date >= ? AND date <= ?
+         ORDER BY date ASC`,
+        [owner.id, `${year}-01-01`, `${year}-12-31`]
+      );
+
+      const reminderRows = await all(
+        `SELECT entry_date, time, text, remind_at FROM reminders
+         WHERE user_id = ? AND entry_date >= ? AND entry_date <= ?
+         ORDER BY remind_at ASC`,
+        [owner.id, `${year}-01-01`, `${year}-12-31`]
+      );
+
+      const remindersByDate = {};
+      reminderRows.forEach((r) => {
+        remindersByDate[r.entry_date] = remindersByDate[r.entry_date] || [];
+        remindersByDate[r.entry_date].push({
+          time: r.time,
+          text: r.text,
+          remindAt: r.remind_at
+        });
+      });
+
+      const entries = entryRows.map((e) => ({
+        date: e.date,
+        score: e.score,
+        summary: e.summary,
+        logs: parseLogs(e.logs_json),
+        reminders: remindersByDate[e.date] || [],
+        updatedAt: e.updated_at
+      }));
+
+      const canEdit = Boolean(OWNER_EDIT_KEY && ownerKey && ownerKey === OWNER_EDIT_KEY);
+      res.json({ entries, canEdit });
+    } catch (err) {
+      console.error("public entries error", err);
+      res.status(500).json({ error: "读取公开日记失败" });
+    }
+  });
+
+  app.put("/api/public/entries/:date", async (req, res) => {
+    const date = String(req.params.date || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: "日期格式必须是 YYYY-MM-DD" });
+    }
+
+    const ownerKey = String(req.query.ownerKey || "").trim();
+    if (!(OWNER_EDIT_KEY && ownerKey && ownerKey === OWNER_EDIT_KEY)) {
+      return res.status(403).json({ error: "只读模式，禁止编辑" });
+    }
+    if (!OWNER_EMAIL) {
+      return res.status(500).json({ error: "服务端未配置 OWNER_EMAIL" });
+    }
+
+    const owner = await get("SELECT id, email FROM users WHERE email = ?", [OWNER_EMAIL]);
+    if (!owner) {
+      return res.status(404).json({ error: "未找到 OWNER_EMAIL 对应账号" });
+    }
+
+    const score = Number(req.body.score);
+    const summary = String(req.body.summary || "").slice(0, 200);
+    const logs = normalizeLogs(req.body.logs);
+    const reminders = Array.isArray(req.body.reminders) ? req.body.reminders : [];
+
+    if (!Number.isInteger(score) || score < 1 || score > 10) {
+      return res.status(400).json({ error: "score 必须在 1-10" });
+    }
+
+    try {
+      await run("BEGIN TRANSACTION");
+
+      await run(
+        `INSERT INTO entries (user_id, date, score, summary, logs_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(user_id, date)
+         DO UPDATE SET score=excluded.score, summary=excluded.summary, logs_json=excluded.logs_json, updated_at=datetime('now')`,
+        [owner.id, date, score, summary, JSON.stringify(logs)]
+      );
+
+      await run("DELETE FROM reminders WHERE user_id = ? AND entry_date = ?", [owner.id, date]);
+
+      for (const reminder of reminders) {
+        const time = String(reminder.time || "").trim();
+        const text = String(reminder.text || "").trim().slice(0, 80);
+        const remindAt = String(reminder.remindAt || "").trim();
+        if (!/^\d{2}:\d{2}$/.test(time) || !text || !isISODateTime(remindAt)) {
+          continue;
+        }
+        await run(
+          `INSERT INTO reminders (user_id, entry_date, time, text, remind_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          [owner.id, date, time, text, remindAt]
+        );
+      }
+
+      await run("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await run("ROLLBACK").catch(() => {});
+      console.error("save public entry error", err);
+      res.status(500).json({ error: "保存失败" });
     }
   });
 

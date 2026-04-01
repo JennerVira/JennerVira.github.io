@@ -1,6 +1,7 @@
 const TOKEN_KEY = "moodDiaryTokenV1";
 const LOCAL_DATA_KEY = "moodDiaryGuestDataV1";
 const API_BASE = String(window.MOOD_DIARY_API_BASE || "").trim().replace(/\/$/, "");
+const OWNER_KEY = new URLSearchParams(window.location.search).get("owner_key") || "";
 
 const monthNames = [
   "1月", "2月", "3月", "4月", "5月", "6月",
@@ -51,56 +52,27 @@ const mediaPool = [
 ];
 
 const renjianCiPool = [
-  { title: "《虞美人》", author: "李煜", line: "问君能有几多愁，恰似一江春水向东流。" },
-  { title: "《浪淘沙令》", author: "李煜", line: "流水落花春去也，天上人间。" },
-  { title: "《蝶恋花》", author: "晏殊", line: "无可奈何花落去，似曾相识燕归来。" },
-  { title: "《浣溪沙》", author: "晏殊", line: "一曲新词酒一杯，去年天气旧亭台。" },
-  { title: "《蝶恋花》", author: "欧阳修", line: "庭院深深深几许，杨柳堆烟，帘幕无重数。" },
-  { title: "《生查子》", author: "欧阳修", line: "月上柳梢头，人约黄昏后。" },
-  { title: "《青玉案·元夕》", author: "辛弃疾", line: "众里寻他千百度，蓦然回首，那人却在，灯火阑珊处。" },
-  { title: "《丑奴儿》", author: "辛弃疾", line: "少年不识愁滋味，爱上层楼。" },
-  { title: "《破阵子》", author: "辛弃疾", line: "醉里挑灯看剑，梦回吹角连营。" },
-  { title: "《鹧鸪天》", author: "辛弃疾", line: "晚日寒鸦一片愁，柳塘新绿却温柔。" },
-  { title: "《念奴娇·赤壁怀古》", author: "苏轼", line: "大江东去，浪淘尽，千古风流人物。" },
-  { title: "《水调歌头》", author: "苏轼", line: "但愿人长久，千里共婵娟。" },
-  { title: "《定风波》", author: "苏轼", line: "莫听穿林打叶声，何妨吟啸且徐行。" },
-  { title: "《卜算子·黄州定慧院寓居作》", author: "苏轼", line: "拣尽寒枝不肯栖，寂寞沙洲冷。" },
-  { title: "《江城子》", author: "苏轼", line: "十年生死两茫茫，不思量，自难忘。" },
-  { title: "《声声慢》", author: "李清照", line: "寻寻觅觅，冷冷清清，凄凄惨惨戚戚。" },
-  { title: "《如梦令》", author: "李清照", line: "知否，知否？应是绿肥红瘦。" },
-  { title: "《醉花阴》", author: "李清照", line: "莫道不销魂，帘卷西风，人比黄花瘦。" },
-  { title: "《一剪梅》", author: "李清照", line: "此情无计可消除，才下眉头，却上心头。" },
-  { title: "《武陵春》", author: "李清照", line: "物是人非事事休，欲语泪先流。" },
-  { title: "《雨霖铃》", author: "柳永", line: "今宵酒醒何处？杨柳岸，晓风残月。" },
-  { title: "《蝶恋花》", author: "柳永", line: "衣带渐宽终不悔，为伊消得人憔悴。" },
-  { title: "《八声甘州》", author: "柳永", line: "对潇潇暮雨洒江天，一番洗清秋。" },
-  { title: "《望海潮》", author: "柳永", line: "有三秋桂子，十里荷花。" },
-  { title: "《鹊桥仙》", author: "秦观", line: "两情若是久长时，又岂在朝朝暮暮。" },
-  { title: "《踏莎行》", author: "秦观", line: "雾失楼台，月迷津渡。" },
-  { title: "《满庭芳》", author: "秦观", line: "山抹微云，天连衰草，画角声断谯门。" },
-  { title: "《行香子》", author: "秦观", line: "便纵有千种风情，更与何人说。" },
-  { title: "《浣溪沙》", author: "秦观", line: "自在飞花轻似梦，无边丝雨细如愁。" },
-  { title: "《临江仙》", author: "晏几道", line: "落花人独立，微雨燕双飞。" },
-  { title: "《鹧鸪天》", author: "晏几道", line: "从别后，忆相逢，几回魂梦与君同。" },
-  { title: "《蝶恋花》", author: "晏几道", line: "梦入江南烟水路，行尽江南，不与离人遇。" },
-  { title: "《木兰花》", author: "晏几道", line: "天涯地角有穷时，只有相思无尽处。" },
-  { title: "《苏幕遮》", author: "范仲淹", line: "碧云天，黄叶地，秋色连波，波上寒烟翠。" },
-  { title: "《渔家傲》", author: "范仲淹", line: "浊酒一杯家万里，燕然未勒归无计。" },
-  { title: "《桂枝香·金陵怀古》", author: "王安石", line: "千里澄江似练，翠峰如簇。" },
-  { title: "《千秋岁引》", author: "王安石", line: "别馆寒砧，孤城画角，一派秋声入寥廓。" },
-  { title: "《清平乐》", author: "黄庭坚", line: "春归何处？寂寞无行路。" },
-  { title: "《卜算子》", author: "陆游", line: "零落成泥碾作尘，只有香如故。" },
-  { title: "《钗头凤》", author: "陆游", line: "山盟虽在，锦书难托。莫，莫，莫！" },
-  { title: "《诉衷情》", author: "陆游", line: "此生谁料，心在天山，身老沧洲。" },
-  { title: "《摸鱼儿》", author: "元好问", line: "问世间，情是何物，直教生死相许。" },
-  { title: "《扬州慢》", author: "姜夔", line: "二十四桥仍在，波心荡，冷月无声。" },
-  { title: "《暗香》", author: "姜夔", line: "旧时月色，算几番照我，梅边吹笛。" },
-  { title: "《疏影》", author: "姜夔", line: "昭君不惯胡沙远，但暗忆、江南江北。" },
-  { title: "《青玉案》", author: "贺铸", line: "试问闲愁都几许？一川烟草，满城风絮，梅子黄时雨。" },
-  { title: "《天仙子》", author: "张先", line: "沙上并禽池上暝，云破月来花弄影。" },
-  { title: "《千秋岁》", author: "张先", line: "天不老，情难绝。心似双丝网，中有千千结。" },
-  { title: "《采桑子》", author: "欧阳修", line: "群芳过后西湖好，狼籍残红。" },
-  { title: "《蝶恋花》", author: "王国维引晏殊", line: "昨夜西风凋碧树。独上高楼，望尽天涯路。" }
+  { title: "《虞美人·春花秋月何时了》", author: "李煜", content: "春花秋月何时了，往事知多少。\n小楼昨夜又东风，故国不堪回首月明中。\n雕栏玉砌应犹在，只是朱颜改。\n问君能有几多愁，恰似一江春水向东流。" },
+  { title: "《浪淘沙令·帘外雨潺潺》", author: "李煜", content: "帘外雨潺潺，春意阑珊。\n罗衾不耐五更寒。\n梦里不知身是客，一晌贪欢。\n独自莫凭栏，无限江山。\n别时容易见时难。\n流水落花春去也，天上人间。" },
+  { title: "《浣溪沙·一曲新词酒一杯》", author: "晏殊", content: "一曲新词酒一杯，去年天气旧亭台。\n夕阳西下几时回？\n无可奈何花落去，似曾相识燕归来。\n小园香径独徘徊。" },
+  { title: "《蝶恋花·庭院深深深几许》", author: "欧阳修", content: "庭院深深深几许，杨柳堆烟，帘幕无重数。\n玉勒雕鞍游冶处，楼高不见章台路。\n雨横风狂三月暮，门掩黄昏，无计留春住。\n泪眼问花花不语，乱红飞过秋千去。" },
+  { title: "《生查子·元夕》", author: "欧阳修", content: "去年元夜时，花市灯如昼。\n月上柳梢头，人约黄昏后。\n今年元夜时，月与灯依旧。\n不见去年人，泪湿春衫袖。" },
+  { title: "《念奴娇·赤壁怀古》", author: "苏轼", content: "大江东去，浪淘尽，千古风流人物。\n故垒西边，人道是，三国周郎赤壁。\n乱石穿空，惊涛拍岸，卷起千堆雪。\n江山如画，一时多少豪杰。\n遥想公瑾当年，小乔初嫁了，雄姿英发。\n羽扇纶巾，谈笑间，樯橹灰飞烟灭。\n故国神游，多情应笑我，早生华发。\n人生如梦，一尊还酹江月。" },
+  { title: "《水调歌头·明月几时有》", author: "苏轼", content: "明月几时有？把酒问青天。\n不知天上宫阙，今夕是何年。\n我欲乘风归去，又恐琼楼玉宇，高处不胜寒。\n起舞弄清影，何似在人间。\n转朱阁，低绮户，照无眠。\n不应有恨，何事长向别时圆？\n人有悲欢离合，月有阴晴圆缺，此事古难全。\n但愿人长久，千里共婵娟。" },
+  { title: "《定风波·莫听穿林打叶声》", author: "苏轼", content: "莫听穿林打叶声，何妨吟啸且徐行。\n竹杖芒鞋轻胜马，谁怕？一蓑烟雨任平生。\n料峭春风吹酒醒，微冷，山头斜照却相迎。\n回首向来萧瑟处，归去，也无风雨也无晴。" },
+  { title: "《江城子·乙卯正月二十日夜记梦》", author: "苏轼", content: "十年生死两茫茫，不思量，自难忘。\n千里孤坟，无处话凄凉。\n纵使相逢应不识，尘满面，鬓如霜。\n夜来幽梦忽还乡，小轩窗，正梳妆。\n相顾无言，惟有泪千行。\n料得年年肠断处，明月夜，短松冈。" },
+  { title: "《如梦令·昨夜雨疏风骤》", author: "李清照", content: "昨夜雨疏风骤，浓睡不消残酒。\n试问卷帘人，却道海棠依旧。\n知否，知否？应是绿肥红瘦。" },
+  { title: "《醉花阴·薄雾浓云愁永昼》", author: "李清照", content: "薄雾浓云愁永昼，瑞脑消金兽。\n佳节又重阳，玉枕纱厨，半夜凉初透。\n东篱把酒黄昏后，有暗香盈袖。\n莫道不销魂，帘卷西风，人比黄花瘦。" },
+  { title: "《一剪梅·红藕香残玉簟秋》", author: "李清照", content: "红藕香残玉簟秋。轻解罗裳，独上兰舟。\n云中谁寄锦书来？雁字回时，月满西楼。\n花自飘零水自流。一种相思，两处闲愁。\n此情无计可消除，才下眉头，却上心头。" },
+  { title: "《声声慢·寻寻觅觅》", author: "李清照", content: "寻寻觅觅，冷冷清清，凄凄惨惨戚戚。\n乍暖还寒时候，最难将息。\n三杯两盏淡酒，怎敌他、晚来风急？\n雁过也，正伤心，却是旧时相识。\n满地黄花堆积。憔悴损，如今有谁堪摘？\n守着窗儿，独自怎生得黑？\n梧桐更兼细雨，到黄昏、点点滴滴。\n这次第，怎一个愁字了得！" },
+  { title: "《雨霖铃·寒蝉凄切》", author: "柳永", content: "寒蝉凄切，对长亭晚，骤雨初歇。\n都门帐饮无绪，留恋处、兰舟催发。\n执手相看泪眼，竟无语凝噎。\n念去去、千里烟波，暮霭沉沉楚天阔。\n多情自古伤离别，更那堪、冷落清秋节！\n今宵酒醒何处？杨柳岸，晓风残月。\n此去经年，应是良辰好景虚设。\n便纵有千种风情，更与何人说？" },
+  { title: "《蝶恋花·伫倚危楼风细细》", author: "柳永", content: "伫倚危楼风细细，望极春愁，黯黯生天际。\n草色烟光残照里，无言谁会凭阑意。\n拟把疏狂图一醉，对酒当歌，强乐还无味。\n衣带渐宽终不悔，为伊消得人憔悴。" },
+  { title: "《鹊桥仙·纤云弄巧》", author: "秦观", content: "纤云弄巧，飞星传恨，银汉迢迢暗度。\n金风玉露一相逢，便胜却、人间无数。\n柔情似水，佳期如梦，忍顾鹊桥归路。\n两情若是久长时，又岂在、朝朝暮暮。" },
+  { title: "《踏莎行·郴州旅舍》", author: "秦观", content: "雾失楼台，月迷津渡，桃源望断无寻处。\n可堪孤馆闭春寒，杜鹃声里斜阳暮。\n驿寄梅花，鱼传尺素，砌成此恨无重数。\n郴江幸自绕郴山，为谁流下潇湘去？" },
+  { title: "《青玉案·元夕》", author: "辛弃疾", content: "东风夜放花千树。更吹落、星如雨。\n宝马雕车香满路。凤箫声动，玉壶光转，一夜鱼龙舞。\n蛾儿雪柳黄金缕。笑语盈盈暗香去。\n众里寻他千百度。蓦然回首，那人却在，灯火阑珊处。" },
+  { title: "《破阵子·为陈同甫赋壮词以寄之》", author: "辛弃疾", content: "醉里挑灯看剑，梦回吹角连营。\n八百里分麾下炙，五十弦翻塞外声，沙场秋点兵。\n马作的卢飞快，弓如霹雳弦惊。\n了却君王天下事，赢得生前身后名。可怜白发生！" },
+  { title: "《丑奴儿·书博山道中壁》", author: "辛弃疾", content: "少年不识愁滋味，爱上层楼。爱上层楼，为赋新词强说愁。\n而今识尽愁滋味，欲说还休。欲说还休，却道天凉好个秋。" },
+  { title: "《苏幕遮·怀旧》", author: "范仲淹", content: "碧云天，黄叶地，秋色连波，波上寒烟翠。\n山映斜阳天接水，芳草无情，更在斜阳外。\n黯乡魂，追旅思，夜夜除非，好梦留人睡。\n明月楼高休独倚，酒入愁肠，化作相思泪。" }
 ];
 
 const defaultAiTips = [
@@ -141,6 +113,7 @@ const state = {
   data: loadGuestData(),
   token: localStorage.getItem(TOKEN_KEY) || "",
   user: null,
+  canEdit: false,
   pushEnabled: false,
   vapidPublicKey: null,
   swReg: null
@@ -283,8 +256,9 @@ async function loadCurrentUser() {
 }
 
 async function syncYear(year) {
-  if (!state.user) return;
-  const data = await api(`/api/entries?year=${year}`, { method: "GET" });
+  const query = OWNER_KEY ? `&ownerKey=${encodeURIComponent(OWNER_KEY)}` : "";
+  const data = await api(`/api/public/entries?year=${year}${query}`, { method: "GET" });
+  state.canEdit = Boolean(data.canEdit);
 
   for (const entry of data.entries) {
     state.data[entry.date] = normalizeEntry({
@@ -340,9 +314,7 @@ function renderHome() {
         state.month = 11;
         state.year -= 1;
       }
-      if (state.user) {
-        await syncYear(state.year).catch(() => {});
-      }
+      await syncYear(state.year).catch(() => {});
       renderHome();
     });
 
@@ -352,9 +324,7 @@ function renderHome() {
         state.month = 0;
         state.year += 1;
       }
-      if (state.user) {
-        await syncYear(state.year).catch(() => {});
-      }
+      await syncYear(state.year).catch(() => {});
       renderHome();
     });
   } else {
@@ -545,13 +515,13 @@ function buildRemindAt(dateStr, time) {
 
 async function saveEntry(dateStr, entry) {
   const normalized = normalizeEntry({ ...entry, saved: true }, true);
-  state.data[dateStr] = normalized;
-  if (!state.user) {
-    saveGuestData();
-    return;
+  if (!state.canEdit) {
+    throw new Error("当前为公开只读模式，不能编辑");
   }
+  state.data[dateStr] = normalized;
 
-  await api(`/api/entries/${dateStr}`, {
+  const query = OWNER_KEY ? `?ownerKey=${encodeURIComponent(OWNER_KEY)}` : "";
+  await api(`/api/public/entries/${dateStr}${query}`, {
     method: "PUT",
     body: JSON.stringify({
       score: normalized.score,
@@ -567,8 +537,8 @@ async function saveEntry(dateStr, entry) {
 }
 
 async function ensurePushSubscribed() {
-  if (!state.user) {
-    alert("请先登录账号");
+  if (!state.canEdit) {
+    alert("当前为公开只读模式，不能编辑提醒");
     return;
   }
 
@@ -612,12 +582,13 @@ function renderDay(dateStr) {
   const media = getDailyMediaRecommendation(dateStr);
   const ciQuote = getDailyCiQuote(dateStr);
   const tips = getAiTips(entry);
+  const readOnly = !state.canEdit;
 
   dayView.innerHTML = `
     <div class="day-header">
       <div>
         <h2>${formatDateCN(dateStr)}</h2>
-        <p class="muted">专注记录今天，沉淀可回看的情绪轨迹。</p>
+        <p class="muted">${readOnly ? "公开只读模式：可查看，不可编辑。" : "专注记录今天，沉淀可回看的情绪轨迹。"}</p>
       </div>
       <button class="back-btn" id="go-home">返回月历</button>
     </div>
@@ -637,7 +608,7 @@ function renderDay(dateStr) {
         </div>
 
         <div style="margin-top:12px;" class="inline">
-          <button id="save-entry" class="btn">保存今日记录</button>
+          <button id="save-entry" class="btn" ${readOnly ? "disabled" : ""}>保存今日记录</button>
           <span class="muted" id="save-status"></span>
         </div>
 
@@ -658,7 +629,7 @@ function renderDay(dateStr) {
         <article class="card">
           <h3>人间词话 · 一日一词</h3>
           <p><strong>${ciQuote.title}</strong> · ${ciQuote.author}</p>
-          <p class="muted">“${ciQuote.line}”</p>
+          <p class="muted ci-poem">${escapeHtml(ciQuote.content).replace(/\n/g, "<br/>")}</p>
         </article>
 
         <article class="card">
@@ -676,8 +647,8 @@ function renderDay(dateStr) {
           <input id="reminder-text" type="text" maxlength="50" placeholder="例如：提醒我 19:58 抢票" />
 
           <div style="margin-top:10px;" class="inline">
-            <button id="add-reminder" class="btn ghost">添加提醒</button>
-            <button id="enable-push" class="btn ghost">开启离线推送提醒</button>
+            <button id="add-reminder" class="btn ghost" ${readOnly ? "disabled" : ""}>添加提醒</button>
+            <button id="enable-push" class="btn ghost" ${readOnly ? "disabled" : ""}>开启离线推送提醒</button>
           </div>
 
           <ul id="reminder-list" class="reminder-list" style="margin-top:10px;"></ul>
@@ -693,6 +664,12 @@ function renderDay(dateStr) {
   const scoreEl = document.getElementById("score");
   const scoreTag = document.getElementById("score-tag");
   const logList = document.getElementById("mood-log-list");
+  if (readOnly) {
+    scoreEl.disabled = true;
+    document.getElementById("summary").disabled = true;
+    document.getElementById("reminder-time").disabled = true;
+    document.getElementById("reminder-text").disabled = true;
+  }
 
   function renderMoodLogs() {
     if (!entry.logs.length) {
@@ -714,6 +691,7 @@ function renderDay(dateStr) {
   });
 
   document.getElementById("save-entry").addEventListener("click", async () => {
+    if (readOnly) return;
     entry.score = Number(scoreEl.value);
     entry.summary = document.getElementById("summary").value.trim();
     entry.logs = Array.isArray(entry.logs) ? entry.logs : [];
@@ -769,6 +747,7 @@ function renderDay(dateStr) {
   renderReminders();
 
   document.getElementById("add-reminder").addEventListener("click", async () => {
+    if (readOnly) return;
     const time = document.getElementById("reminder-time").value;
     const text = document.getElementById("reminder-text").value.trim();
 
@@ -792,7 +771,10 @@ function renderDay(dateStr) {
     }
   });
 
-  document.getElementById("enable-push").addEventListener("click", ensurePushSubscribed);
+  document.getElementById("enable-push").addEventListener("click", () => {
+    if (readOnly) return;
+    ensurePushSubscribed();
+  });
 }
 
 function hashCode(str) {
@@ -850,6 +832,7 @@ function formatLogTime(iso) {
 
 async function bootstrap() {
   await loadConfig();
+  await syncYear(state.year).catch(() => {});
 
   if ("serviceWorker" in navigator) {
     state.swReg = await navigator.serviceWorker.register("/sw.js").catch(() => null);
