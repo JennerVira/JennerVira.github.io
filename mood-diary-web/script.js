@@ -121,6 +121,7 @@ const state = {
 
 const homeView = document.getElementById("home-view");
 const dayView = document.getElementById("day-view");
+let hasShownOwnerKeyHint = false;
 
 function toISODate(date) {
   const y = date.getFullYear();
@@ -136,6 +137,16 @@ function formatDateCN(dateStr) {
 
 function hashForDate(dateStr) {
   return `#day=${dateStr}`;
+}
+
+function setOwnerKeyInUrl(key) {
+  const url = new URL(window.location.href);
+  if (key) {
+    url.searchParams.set("owner_key", key);
+  } else {
+    url.searchParams.delete("owner_key");
+  }
+  window.location.href = url.toString();
 }
 
 function scoreClass(score) {
@@ -259,6 +270,10 @@ async function syncYear(year) {
   const query = OWNER_KEY ? `&ownerKey=${encodeURIComponent(OWNER_KEY)}` : "";
   const data = await api(`/api/public/entries?year=${year}${query}`, { method: "GET" });
   state.canEdit = Boolean(data.canEdit);
+  if (OWNER_KEY && !state.canEdit && !hasShownOwnerKeyHint) {
+    hasShownOwnerKeyHint = true;
+    alert("编辑密钥无效，当前为只读模式。");
+  }
 
   for (const entry of data.entries) {
     state.data[entry.date] = normalizeEntry({
@@ -273,6 +288,46 @@ async function syncYear(year) {
 
 function renderAuthPanel() {
   return;
+}
+
+function renderEditEntrance() {
+  const logo = document.querySelector(".logo");
+  if (!logo) return;
+
+  let holdTimer = null;
+
+  const clearHold = () => {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  };
+
+  logo.title = "长按可输入主理人密钥";
+  logo.addEventListener("pointerdown", () => {
+    holdTimer = setTimeout(() => {
+      clearHold();
+      const key = window.prompt("请输入编辑密钥（owner_key）：");
+      if (!key) return;
+      setOwnerKeyInUrl(key.trim());
+    }, 900);
+  });
+  logo.addEventListener("pointerup", clearHold);
+  logo.addEventListener("pointerleave", clearHold);
+  logo.addEventListener("pointercancel", clearHold);
+
+  const oldExit = document.getElementById("owner-exit-btn");
+  if (oldExit) oldExit.remove();
+  if (state.canEdit) {
+    const exitBtn = document.createElement("button");
+    exitBtn.id = "owner-exit-btn";
+    exitBtn.className = "back-btn";
+    exitBtn.textContent = "退出编辑";
+    exitBtn.style.marginLeft = "8px";
+    exitBtn.addEventListener("click", () => setOwnerKeyInUrl(""));
+    const brand = document.querySelector(".brand");
+    if (brand) brand.appendChild(exitBtn);
+  }
 }
 
 function renderHome() {
@@ -839,6 +894,7 @@ function formatLogTime(iso) {
 async function bootstrap() {
   await loadConfig();
   await syncYear(state.year).catch(() => {});
+  renderEditEntrance();
 
   if ("serviceWorker" in navigator) {
     state.swReg = await navigator.serviceWorker.register("/sw.js").catch(() => null);
