@@ -583,6 +583,44 @@ function renderDay(dateStr) {
   const ciQuote = getDailyCiQuote(dateStr);
   const tips = getAiTips(entry);
   const readOnly = !state.canEdit;
+  const hasSaved = isEntrySaved(entry);
+  const displayScore = hasSaved ? `${entry.score}/10` : "--";
+  const displaySummary = hasSaved ? (entry.summary || "（未填写总结）") : "（暂无已保存记录）";
+  const moodEditorArea = readOnly ? `
+        <div style="margin-top:8px;">
+          <label>当日分数</label>
+          <p class="muted">${displayScore}</p>
+        </div>
+        <div style="margin-top:8px;">
+          <label>一句话总结</label>
+          <p class="muted">${escapeHtml(displaySummary)}</p>
+        </div>
+      ` : `
+        <div class="inline">
+          <label for="score">今日打分（1-10）</label>
+          <span id="score-tag" class="score-tag">${entry.score}/10</span>
+        </div>
+        <input id="score" type="range" min="1" max="10" value="${entry.score}" />
+        <div style="margin-top:12px;">
+          <label for="summary">一句话总结</label>
+          <textarea id="summary" rows="4" maxlength="120" placeholder="例如：今天完成了关键任务，虽然很累但很踏实。">${entry.summary || ""}</textarea>
+        </div>
+        <div style="margin-top:12px;" class="inline">
+          <button id="save-entry" class="btn">保存今日记录</button>
+          <span class="muted" id="save-status"></span>
+        </div>
+      `;
+  const reminderEditorArea = readOnly ? "" : `
+          <div class="divider"></div>
+          <label for="reminder-time">添加提醒时间</label>
+          <input id="reminder-time" type="time" value="09:00" />
+          <label for="reminder-text" style="margin-top:10px;">提醒内容</label>
+          <input id="reminder-text" type="text" maxlength="50" placeholder="例如：提醒我 19:58 抢票" />
+          <div style="margin-top:10px;" class="inline">
+            <button id="add-reminder" class="btn ghost">添加提醒</button>
+            <button id="enable-push" class="btn ghost">开启离线推送提醒</button>
+          </div>
+      `;
 
   dayView.innerHTML = `
     <div class="day-header">
@@ -596,21 +634,7 @@ function renderDay(dateStr) {
     <div class="cards">
       <article class="card">
         <h3>每日心情记录</h3>
-        <div class="inline">
-          <label for="score">今日打分（1-10）</label>
-          <span id="score-tag" class="score-tag">${entry.score}/10</span>
-        </div>
-        <input id="score" type="range" min="1" max="10" value="${entry.score}" />
-
-        <div style="margin-top:12px;">
-          <label for="summary">一句话总结</label>
-          <textarea id="summary" rows="4" maxlength="120" placeholder="例如：今天完成了关键任务，虽然很累但很踏实。">${entry.summary || ""}</textarea>
-        </div>
-
-        <div style="margin-top:12px;" class="inline">
-          <button id="save-entry" class="btn" ${readOnly ? "disabled" : ""}>保存今日记录</button>
-          <span class="muted" id="save-status"></span>
-        </div>
+        ${moodEditorArea}
 
         <div class="divider"></div>
         <h3 style="margin-top:0;">今日记录回看</h3>
@@ -637,19 +661,7 @@ function renderDay(dateStr) {
           <ul class="tip-list">
             ${tips.map((t) => `<li>${t}</li>`).join("")}
           </ul>
-
-          <div class="divider"></div>
-
-          <label for="reminder-time">添加提醒时间</label>
-          <input id="reminder-time" type="time" value="09:00" />
-
-          <label for="reminder-text" style="margin-top:10px;">提醒内容</label>
-          <input id="reminder-text" type="text" maxlength="50" placeholder="例如：提醒我 19:58 抢票" />
-
-          <div style="margin-top:10px;" class="inline">
-            <button id="add-reminder" class="btn ghost" ${readOnly ? "disabled" : ""}>添加提醒</button>
-            <button id="enable-push" class="btn ghost" ${readOnly ? "disabled" : ""}>开启离线推送提醒</button>
-          </div>
+          ${reminderEditorArea}
 
           <ul id="reminder-list" class="reminder-list" style="margin-top:10px;"></ul>
         </article>
@@ -664,12 +676,6 @@ function renderDay(dateStr) {
   const scoreEl = document.getElementById("score");
   const scoreTag = document.getElementById("score-tag");
   const logList = document.getElementById("mood-log-list");
-  if (readOnly) {
-    scoreEl.disabled = true;
-    document.getElementById("summary").disabled = true;
-    document.getElementById("reminder-time").disabled = true;
-    document.getElementById("reminder-text").disabled = true;
-  }
 
   function renderMoodLogs() {
     if (!entry.logs.length) {
@@ -685,32 +691,33 @@ function renderDay(dateStr) {
 
   renderMoodLogs();
 
-  scoreEl.addEventListener("input", () => {
-    scoreTag.textContent = `${scoreEl.value}/10`;
-    scoreTag.style.background = scoreEl.value >= 8 ? "#2b9348" : scoreEl.value <= 4 ? "#d62839" : "#f4a261";
-  });
-
-  document.getElementById("save-entry").addEventListener("click", async () => {
-    if (readOnly) return;
-    entry.score = Number(scoreEl.value);
-    entry.summary = document.getElementById("summary").value.trim();
-    entry.logs = Array.isArray(entry.logs) ? entry.logs : [];
-    entry.logs.push({
-      score: entry.score,
-      summary: entry.summary,
-      at: new Date().toISOString()
+  if (!readOnly && scoreEl && scoreTag) {
+    scoreEl.addEventListener("input", () => {
+      scoreTag.textContent = `${scoreEl.value}/10`;
+      scoreTag.style.background = scoreEl.value >= 8 ? "#2b9348" : scoreEl.value <= 4 ? "#d62839" : "#f4a261";
     });
-    entry.saved = true;
 
-    try {
-      await saveEntry(dateStr, entry);
-      document.getElementById("save-status").textContent = state.user ? "已保存并同步到云端" : "已保存（本地）";
-      renderMoodLogs();
-      renderHome();
-    } catch (err) {
-      document.getElementById("save-status").textContent = `保存失败：${err.message}`;
-    }
-  });
+    document.getElementById("save-entry").addEventListener("click", async () => {
+      entry.score = Number(scoreEl.value);
+      entry.summary = document.getElementById("summary").value.trim();
+      entry.logs = Array.isArray(entry.logs) ? entry.logs : [];
+      entry.logs.push({
+        score: entry.score,
+        summary: entry.summary,
+        at: new Date().toISOString()
+      });
+      entry.saved = true;
+
+      try {
+        await saveEntry(dateStr, entry);
+        document.getElementById("save-status").textContent = "已保存";
+        renderMoodLogs();
+        renderHome();
+      } catch (err) {
+        document.getElementById("save-status").textContent = `保存失败：${err.message}`;
+      }
+    });
+  }
 
   const reminderList = document.getElementById("reminder-list");
 
@@ -724,13 +731,14 @@ function renderDay(dateStr) {
 
     entry.reminders.forEach((item, idx) => {
       const li = document.createElement("li");
-      li.innerHTML = `
-        <strong>${item.time}</strong> ${item.text}
-        <button class="back-btn" data-remove="${idx}" style="margin-left:8px; padding:3px 8px;">删除</button>
-      `;
+      li.innerHTML = readOnly
+        ? `<strong>${item.time}</strong> ${item.text}`
+        : `<strong>${item.time}</strong> ${item.text}
+          <button class="back-btn" data-remove="${idx}" style="margin-left:8px; padding:3px 8px;">删除</button>`;
       reminderList.appendChild(li);
     });
 
+    if (readOnly) return;
     reminderList.querySelectorAll("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         entry.reminders.splice(Number(btn.dataset.remove), 1);
@@ -746,35 +754,33 @@ function renderDay(dateStr) {
 
   renderReminders();
 
-  document.getElementById("add-reminder").addEventListener("click", async () => {
-    if (readOnly) return;
-    const time = document.getElementById("reminder-time").value;
-    const text = document.getElementById("reminder-text").value.trim();
+  if (!readOnly) {
+    document.getElementById("add-reminder").addEventListener("click", async () => {
+      const time = document.getElementById("reminder-time").value;
+      const text = document.getElementById("reminder-text").value.trim();
 
-    if (!time || !text) {
-      alert("请先填写提醒时间和内容");
-      return;
-    }
+      if (!time || !text) {
+        alert("请先填写提醒时间和内容");
+        return;
+      }
 
-    entry.reminders.push({
-      time,
-      text,
-      remindAt: buildRemindAt(dateStr, time)
+      entry.reminders.push({
+        time,
+        text,
+        remindAt: buildRemindAt(dateStr, time)
+      });
+
+      try {
+        await saveEntry(dateStr, entry);
+        renderReminders();
+        document.getElementById("reminder-text").value = "";
+      } catch (err) {
+        alert(err.message);
+      }
     });
 
-    try {
-      await saveEntry(dateStr, entry);
-      renderReminders();
-      document.getElementById("reminder-text").value = "";
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  document.getElementById("enable-push").addEventListener("click", () => {
-    if (readOnly) return;
-    ensurePushSubscribed();
-  });
+    document.getElementById("enable-push").addEventListener("click", ensurePushSubscribed);
+  }
 }
 
 function hashCode(str) {
