@@ -217,11 +217,7 @@ function startServer() {
       if (!/^\d{4}$/.test(year)) {
         return res.status(400).json({ error: "year 参数无效" });
       }
-      if (!OWNER_EMAIL) {
-        return res.status(500).json({ error: "服务端未配置 OWNER_EMAIL" });
-      }
-
-      const owner = await get("SELECT id, email FROM users WHERE email = ?", [OWNER_EMAIL]);
+      const owner = await getOwnerUser();
       if (!owner) {
         return res.json({ entries: [], canEdit: false });
       }
@@ -260,7 +256,7 @@ function startServer() {
       }));
 
       const canEdit = Boolean(OWNER_EDIT_KEY && ownerKey && ownerKey === OWNER_EDIT_KEY);
-      res.json({ entries, canEdit });
+      res.json({ entries, canEdit, ownerEmail: owner.email });
     } catch (err) {
       console.error("public entries error", err);
       res.status(500).json({ error: "读取公开日记失败" });
@@ -277,13 +273,9 @@ function startServer() {
     if (!(OWNER_EDIT_KEY && ownerKey && ownerKey === OWNER_EDIT_KEY)) {
       return res.status(403).json({ error: "只读模式，禁止编辑" });
     }
-    if (!OWNER_EMAIL) {
-      return res.status(500).json({ error: "服务端未配置 OWNER_EMAIL" });
-    }
-
-    const owner = await get("SELECT id, email FROM users WHERE email = ?", [OWNER_EMAIL]);
+    const owner = await getOwnerUser();
     if (!owner) {
-      return res.status(404).json({ error: "未找到 OWNER_EMAIL 对应账号" });
+      return res.status(404).json({ error: "未找到可编辑账号，请先创建账号数据" });
     }
 
     const score = Number(req.body.score);
@@ -525,6 +517,15 @@ function all(sql, params = []) {
       resolve(rows || []);
     });
   });
+}
+
+async function getOwnerUser() {
+  if (OWNER_EMAIL) {
+    const byEmail = await get("SELECT id, email FROM users WHERE email = ?", [OWNER_EMAIL]);
+    if (byEmail) return byEmail;
+  }
+  const fallback = await get("SELECT id, email FROM users ORDER BY created_at ASC, id ASC LIMIT 1");
+  return fallback;
 }
 
 async function ensureColumn(tableName, columnName, columnDefinition) {
