@@ -1,7 +1,8 @@
 const TOKEN_KEY = "moodDiaryTokenV1";
 const LOCAL_DATA_KEY = "moodDiaryGuestDataV1";
+const OWNER_KEY_STORAGE = "moodDiaryOwnerKeyV1";
 const API_BASE = String(window.MOOD_DIARY_API_BASE || "").trim().replace(/\/$/, "");
-const OWNER_KEY = new URLSearchParams(window.location.search).get("owner_key") || "";
+let OWNER_KEY = "";
 
 const monthNames = [
   "1月", "2月", "3月", "4月", "5月", "6月",
@@ -146,7 +147,71 @@ function setOwnerKeyInUrl(key) {
   } else {
     url.searchParams.delete("owner_key");
   }
-  window.location.href = url.toString();
+  window.history.replaceState({}, "", url.toString());
+}
+
+function initOwnerKey() {
+  const fromUrl = new URLSearchParams(window.location.search).get("owner_key") || "";
+  const fromStorage = localStorage.getItem(OWNER_KEY_STORAGE) || "";
+  OWNER_KEY = (fromUrl || fromStorage).trim();
+  if (OWNER_KEY) {
+    localStorage.setItem(OWNER_KEY_STORAGE, OWNER_KEY);
+    if (!fromUrl) setOwnerKeyInUrl(OWNER_KEY);
+  }
+}
+
+function setOwnerKey(key) {
+  OWNER_KEY = String(key || "").trim();
+  if (OWNER_KEY) {
+    localStorage.setItem(OWNER_KEY_STORAGE, OWNER_KEY);
+    setOwnerKeyInUrl(OWNER_KEY);
+  } else {
+    localStorage.removeItem(OWNER_KEY_STORAGE);
+    setOwnerKeyInUrl("");
+  }
+}
+
+function renderOwnerControls() {
+  const brand = document.querySelector(".brand");
+  if (!brand) return;
+
+  const oldWrap = document.getElementById("owner-controls");
+  if (oldWrap) oldWrap.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "owner-controls";
+  wrap.className = "owner-controls";
+
+  if (state.canEdit) {
+    wrap.innerHTML = `
+      <span class="owner-badge">编辑模式</span>
+      <button class="back-btn" id="owner-exit-btn">退出编辑</button>
+    `;
+    brand.appendChild(wrap);
+    document.getElementById("owner-exit-btn").addEventListener("click", async () => {
+      setOwnerKey("");
+      state.canEdit = false;
+      await syncYear(state.year).catch(() => {});
+      navigateByHash();
+      renderOwnerControls();
+    });
+    return;
+  }
+
+  wrap.innerHTML = `<button class="back-btn" id="owner-enter-btn">输入编辑密钥</button>`;
+  brand.appendChild(wrap);
+  document.getElementById("owner-enter-btn").addEventListener("click", async () => {
+    const key = window.prompt("请输入编辑密钥");
+    if (!key) return;
+    setOwnerKey(key);
+    await syncYear(state.year).catch(() => {});
+    if (!state.canEdit) {
+      alert("密钥无效，请检查 Railway 的 OWNER_EDIT_KEY 是否一致。");
+      return;
+    }
+    navigateByHash();
+    renderOwnerControls();
+  });
 }
 
 function scoreClass(score) {
@@ -173,7 +238,14 @@ async function api(path, options = {}) {
     ...(options.headers || {})
   };
 
-  const response = await fetch(apiUrl(path), { ...options, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  let response;
+  try {
+    response = await fetch(apiUrl(path), { ...options, headers, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.error || "请求失败");
@@ -291,43 +363,7 @@ function renderAuthPanel() {
 }
 
 function renderEditEntrance() {
-  const logo = document.querySelector(".logo");
-  if (!logo) return;
-
-  let holdTimer = null;
-
-  const clearHold = () => {
-    if (holdTimer) {
-      clearTimeout(holdTimer);
-      holdTimer = null;
-    }
-  };
-
-  logo.title = "长按可输入主理人密钥";
-  logo.addEventListener("pointerdown", () => {
-    holdTimer = setTimeout(() => {
-      clearHold();
-      const key = window.prompt("请输入编辑密钥（owner_key）：");
-      if (!key) return;
-      setOwnerKeyInUrl(key.trim());
-    }, 900);
-  });
-  logo.addEventListener("pointerup", clearHold);
-  logo.addEventListener("pointerleave", clearHold);
-  logo.addEventListener("pointercancel", clearHold);
-
-  const oldExit = document.getElementById("owner-exit-btn");
-  if (oldExit) oldExit.remove();
-  if (state.canEdit) {
-    const exitBtn = document.createElement("button");
-    exitBtn.id = "owner-exit-btn";
-    exitBtn.className = "back-btn";
-    exitBtn.textContent = "退出编辑";
-    exitBtn.style.marginLeft = "8px";
-    exitBtn.addEventListener("click", () => setOwnerKeyInUrl(""));
-    const brand = document.querySelector(".brand");
-    if (brand) brand.appendChild(exitBtn);
-  }
+  renderOwnerControls();
 }
 
 function renderHome() {
@@ -892,17 +928,19 @@ function formatLogTime(iso) {
 }
 
 async function bootstrap() {
-  await loadConfig();
+  initOwnerKey();
+  renderEditEntrance();
+  navigateByHash();
+  window.addEventListener("hashchange", navigateByHash);
+
+  await loadConfig().catch(() => {});
   await syncYear(state.year).catch(() => {});
   renderEditEntrance();
+  navigateByHash();
 
   if ("serviceWorker" in navigator) {
     state.swReg = await navigator.serviceWorker.register("/sw.js").catch(() => null);
   }
-
-  navigateByHash();
-
-  window.addEventListener("hashchange", navigateByHash);
 }
 
 bootstrap();
