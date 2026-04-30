@@ -28,7 +28,16 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 const dbPath = process.env.DB_PATH || path.join(__dirname, "data", "mood-diary.db");
-const db = new sqlite3.Database(dbPath);
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("Failed to open sqlite database:", err);
+    process.exit(1);
+  }
+});
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
