@@ -198,10 +198,10 @@ function renderOwnerControls() {
     return;
   }
 
-  wrap.innerHTML = `<button class="back-btn" id="owner-enter-btn">输入编辑密钥</button>`;
+  wrap.innerHTML = `<button class="back-btn" id="owner-enter-btn">异想世界入口</button>`;
   brand.appendChild(wrap);
   document.getElementById("owner-enter-btn").addEventListener("click", async () => {
-    const key = window.prompt("请输入编辑密钥");
+    const key = window.prompt("请输入异想世界密钥");
     if (!key) return;
     setOwnerKey(key);
     await syncYear(state.year).catch(() => {});
